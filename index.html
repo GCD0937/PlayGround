@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elder Realms — Open World RPG (3D)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: #0b0f19; color: #e5e7eb; font-family: 'Segoe UI', system-ui, sans-serif;
+    user-select: none; }
+  #canvas { display: block; width: 100vw; height: 100vh; background: linear-gradient(#0f172a, #1e293b); }
+  .ui { position: absolute; pointer-events: none; top: 0; left: 0; width: 100%; height: 100%; }
+  .ui > * { pointer-events: auto; }
+  .panel { position: absolute; background: rgba(18,22,34,0.94); border: 2px solid #4f46e5;
+    border-radius: 10px; padding: 14px; color: #e5e7eb; pointer-events: auto;
+    box-shadow: 0 0 25px rgba(0,0,0,0.7); display: none; backdrop-filter: blur(4px); }
+  .panel.visible { display: block; }
+  .hidden { display: none !important; }
+  .panel h2 { margin: 0 0 10px 0; font-size: 18px; color: #a78bfa; text-transform: uppercase; letter-spacing: 2px; }
+  button { background: linear-gradient(135deg,#4f46e5,#6366f1); color: #fff; border: none; border-radius: 6px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600; margin: 4px 4px 4px 0;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.4); }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: #374151; box-shadow:none; }
+  button.secondary:hover { background: #4b5563; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; filter:none; }
+  input, select { background: #1f2937; border: 1px solid #4b5563; color: #e5e7eb;
+    padding: 6px 10px; border-radius: 5px; font-size: 13px; margin: 3px 0; width: 100%; }
+  label { font-size: 12px; color: #9ca3af; display: block; margin: 5px 0 2px 0; }
+  .row { display: flex; gap: 10px; margin: 6px 0; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 130px; }
+  .stat { font-size: 13px; margin: 3px 0; display: flex; justify-content: space-between; }
+  .stat .name { color: #9ca3af; }
+  .stat .val { color: #e5e7eb; font-weight: 700; }
+  .hpbar, .mpbar, .xpbar { width: 100%; height: 9px; background: #111827; border: 1px solid #374151;
+    border-radius: 5px; overflow: hidden; margin: 4px 0; }
+  .hpbar .fill, .mpbar .fill, .xpbar .fill { height: 100%; transition: width 0.3s; }
+  .hpbar .fill { background: linear-gradient(90deg,#ef4444,#fb7185); }
+  .mpbar .fill { background: linear-gradient(90deg,#6366f1,#a78bfa); }
+  .xpbar .fill { background: linear-gradient(90deg,#10b981,#34d399); }
+  .log { height: 110px; overflow-y: auto; background: #0b0f19; border: 1px solid #374151;
+    border-radius: 6px; padding: 8px; font-size: 12px; line-height: 1.5; margin: 6px 0; }
+  .log .entry { margin: 2px 0; padding: 2px 0; border-bottom: 1px solid #1f2937; white-space:pre-wrap; }
+  .log .dmg { color: #f87171; font-weight: 700; }
+  .log .heal { color: #34d399; font-weight: 700; }
+  .log .xp { color: #fbbf24; font-weight: 700; }
+  .log .sys { color: #a78bfa; font-style: italic; }
+  .hud { position: absolute; top: 18px; left: 18px; pointer-events: none; width: 250px; }
+  .hud .name { font-size: 17px; font-weight: 800; color: #fff; text-shadow: 0 2px 10px #000; letter-spacing:1px;}
+  .hud .lvl { font-size: 12px; color: #a78bfa; margin-bottom: 8px; }
+  .controls { position: absolute; bottom: 16px; right: 16px; pointer-events: none; font-size: 12px; color: #6b7280;
+    background: rgba(15,23,42,0.7); padding: 8px 12px; border-radius: 8px; border: 1px solid #374151; }
+  .controls kbd { background: #374151; padding: 1px 6px; border-radius: 4px; margin: 0 2px; border:1px solid #4b5563;}
+  .msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(15,23,42,0.92); border: 2px solid #4f46e5; padding: 24px 34px; border-radius: 14px;
+    text-align: center; display: none; z-index: 60; min-width: 320px; }
+  .msg h1 { margin: 0 0 10px 0; color: #a78bfa; font-size: 30px; text-transform: uppercase; letter-spacing:3px;}
+  .msg p { margin: 0 0 14px 0; color: #cbd5e1; font-size: 14px; line-height:1.5;}
+  .race-grid, .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; margin: 8px 0; }
+  .tile { border: 2px solid #4b5563; border-radius: 7px; padding: 8px 6px; text-align: center;
+    cursor: pointer; font-size: 11.5px; background: #1f2937; color: #e5e7eb; transition: transform .1s, border .1s; }
+  .tile:hover { transform: translateY(-2px); border-color: #6366f1; }
+  .tile.selected { border-color: #a78bfa; background: #3730a3; color: #fff; }
+  .tile .emoji { font-size: 24px; display: block; margin-bottom: 3px; line-height:1;}
+  .small { font-size: 10.5px; color: #9ca3af; margin-top: 3px; line-height:1.35; }
+  #loading { position: fixed; inset: 0; background: #0b0f19; color: #fff; display: flex;
+    flex-direction: column; align-items: center; justify-content: center; z-index: 10000; font-size: 17px; }
+  #loading .spinner { width: 44px; height: 44px; border: 4px solid #374151; border-top-color: #4f46e5;
+    border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ability { font-size: 12px; color: #cbd5e1; margin: 3px 0; }
+  .center { text-align:center; }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><div>Initializing Elder Realms (3D)...</div></div>
+
+<div id="canvas"></div>
+
+<div class="ui">
+  <div class="hud">
+    <div class="name" id="hudName">Hero</div>
+    <div class="lvl" id="hudLvl">Level 1</div>
+    <div class="hpbar"><div class="fill" id="hpFill" style="width:100%"></div></div>
+    <div class="stat"><span class="name">HP</span><span class="val" id="hpVal">100/100</span></div>
+    <div class="mpbar"><div class="fill" id="mpFill" style="width:100%"></div></div>
+    <div class="stat"><span class="name">MP</span><span class="val" id="mpVal">50/50</span></div>
+    <div class="xpbar"><div class="fill" id="xpFill" style="width:0%"></div></div>
+    <div class="stat"><span class="name">XP</span><span class="val" id="xpVal">0/100</span></div>
+    <div style="margin-top:8px; font-size:12px; color:#9ca3af;">Gold: <b id="hudGold" style="color:#fbbf24;">0</b> &nbsp;|&nbsp; Zone: <b id="hudZone" style="color:#a78bfa;">—</b></div>
+  </div>
+
+  <div id="charPanel" class="panel" style="left:20px; top:20px; width:330px;">
+    <h2>Character</h2>
+    <div style="font-size:13px; margin-bottom:6px;"><b>Race:</b> <span id="cRace" style="color:#a78bfa;"></span></div>
+    <div style="font-size:13px; margin-bottom:10px;"><b>Class:</b> <span id="cClass" style="color:#a78bfa;"></span></div>
+    <div class="stat"><span class="name">STR</span><span class="val" id="cStr">0</span></div>
+    <div class="stat"><span class="name">DEX</span><span class="val" id="cDex">0</span></div>
+    <div class="stat"><span class="name">CON</span><span class="val" id="cCon">0</span></div>
+    <div class="stat"><span class="name">INT</span><span class="val" id="cInt">0</span></div>
+    <div class="stat"><span class="name">WIS</span><span class="val" id="cWis">0</span></div>
+    <div class="stat"><span class="name">CHA</span><span class="val" id="cCha">0</span></div>
+    <div style="margin-top:10px;"></div>
+    <div class="stat"><span class="name">Attack</span><span class="val" id="cAtk">0</span></div>
+    <div class="stat"><span class="name">Defense</span><span class="val" id="cDef">0</span></div>
+    <div class="stat"><span class="name">Crit</span><span class="val" id="cCrit">0%</span></div>
+    <div class="stat"><span class="name">Speed</span><span class="val" id="cSpd">0</span></div>
+    <div style="margin-top:12px;"></div>
+    <div style="font-size:12px; color:#9ca3af;">Gold: <span id="cGold" style="color:#fbbf24;">0</span></div>
+    <div style="font-size:12px; color:#9ca3af;">Zone: <span id="cZone" style="color:#a78bfa;">—</span></div>
+    <div style="margin-top:12px;"></div>
+    <button onclick="game.openPanel('inventory')">Inventory</button>
+    <button onclick="game.openPanel('skills')">Skills</button>
+    <button onclick="game.openPanel('quests')">Quests</button>
+    <button onclick="game.openPanel('map')">World Map</button>
+    <button class="secondary" onclick="game.save(); game.log('Game saved.','sys');">Save</button>
+    <button class="secondary" onclick="game.load(); game.log('Game loaded.','sys');">Load</button>
+    <button class="secondary" onclick="game.closePanel('char'); game.uiMode=null;">Close</button>
+  </div>
+
+  <div id="inventoryPanel" class="panel" style="left:20px; top:20px; width:420px; height:560px;">
+    <h2>Inventory</h2>
+    <div id="invSlots" style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:10px;"></div>
+    <div style="font-size:12px;color:#9ca3af; margin-bottom:8px;">Equipment:</div>
+    <div id="invEquip" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;"></div>
+    <button class="secondary" onclick="game.closePanel('inventory');">Close</button>
+  </div>
+
+  <div id="skillsPanel" class="panel" style="left:20px; top:20px; width:420px; height:560px;">
+    <h2>Skills &amp; Abilities</h2>
+    <div id="skillsList"></div>
+    <button class="secondary" onclick="game.closePanel('skills');">Close</button>
+  </div>
+
+  <div id="questsPanel" class="panel" style="left:20px; top:20px; width:420px; height:560px;">
+    <h2>Quests</h2>
+    <div id="questsList"></div>
+    <button class="secondary" onclick="game.closePanel('quests');">Close</button>
+  </div>
+
+  <div id="mapPanel" class="panel" style="left:20px; top:20px; width:470px; height:560px;">
+    <h2>World Map</h2>
+    <canvas id="mapCanvas" width="410" height="390" style="border:1px solid #4b5563; background:#0b0f19; border-radius:6px; display:block; margin:0 auto 10px auto;"></canvas>
+    <div id="mapHint" style="font-size:12px; color:#9ca3af; text-align:center;"></div>
+    <button class="secondary" onclick="game.closePanel('map');">Close</button>
+  </div>
+
+  <div id="combatPanel" class="panel" style="right:20px; top:20px; width:330px; height:560px;">
+    <h2 id="combatTitle">Combat</h2>
+    <div id="combatEnemyInfo"></div>
+    <div id="combatLog" class="log"></div>
+    <div id="combatActions" style="display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;"></div>
+    <button class="secondary" id="combatFlee" style="margin-top:8px;">Flee</button>
+  </div>
+
+  <div id="npcPanel" class="panel" style="right:20px; top:20px; width:310px;">
+    <h2 id="npcTitle">Talk</h2>
+    <div id="npcDialogue" style="margin-bottom:10px; color:#cbd5e1; line-height:1.5; min-height:60px;"></div>
+    <div id="npcOptions"></div>
+    <button class="secondary" onclick="game.closeNPC();">Leave</button>
+  </div>
+
+  <div id="createPanel" class="panel" style="left:50%; top:8%; transform:translateX(-50%); width:470px; height:700px; display:block; z-index:70;">
+    <h2>Create Your Hero</h2>
+    <div style="margin:8px 0;">
+      <label>Name</label>
+      <input id="cName" value="Aria" maxlength="20">
+    </div>
+    <div style="margin:8px 0;"><label>Race</label>
+      <div class="race-grid" id="raceGrid"></div>
+    </div>
+    <div style="margin:8px 0;"><label>Class</label>
+      <div class="class-grid" id="classGrid"></div>
+    </div>
+    <div style="margin:8px 0; font-size:12px; color:#9ca3af; line-height:1.4;" id="createDesc"></div>
+    <div style="margin:10px 0;">
+      <div class="stat"><span class="name">STR</span><span class="val" id="previewStr">10</span></div>
+      <div class="stat"><span class="name">DEX</span><span class="val" id="previewDex">10</span></div>
+      <div class="stat"><span class="name">CON</span><span class="val" id="previewCon">10</span></div>
+      <div class="stat"><span class="name">INT</span><span class="val" id="previewInt">10</span></div>
+      <div class="stat"><span class="name">WIS</span><span class="val" id="previewWis">10</span></div>
+      <div class="stat"><span class="name">CHA</span><span class="val" id="previewCha">10</span></div>
+    </div>
+    <div style="margin-top:14px; text-align:center;">
+      <button id="btnStart" style="padding:10px 28px; font-size:15px;">Begin Adventure</button>
+    </div>
+  </div>
+
+  <div id="msgBox" class="msg">
+    <h1 id="msgTitle">Message</h1>
+    <div id="msgBody"></div>
+    <div style="margin-top:14px;"><button onclick="game.hideMsg()" style="padding:8px 22px;">Continue</button></div>
+  </div>
+
+  <div id="gameOver" class="msg" style="display:none;">
+    <h1 style="color:#ef4444; text-transform:none;">You Have Fallen</h1>
+    <div id="gameOverBody"></div>
+    <div style="margin-top:14px;">
+      <button onclick="game.respawn()" style="padding:8px 20px;">Respawn at Village</button>
+      <button class="secondary" onclick="game.load()" style="padding:8px 20px;">Load Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <kbd>WASD / Arrows</kbd> Move &nbsp; <kbd>C</kbd> Character &nbsp; <kbd>I</kbd> Inventory &nbsp; <kbd>K</kbd> Skills &nbsp; <kbd>Q</kbd> Quests &nbsp; <kbd>M</kbd> Map &nbsp; <kbd>E</kbd> Interact &nbsp; <kbd>S</kbd> Save &nbsp; <kbd>L</kbd> Load
+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+/* ============================ GAME DATA ============================ */
+
+const RACES = {
+  Elves: { emoji: '🧝', desc: 'Graceful and perceptive. +2 DEX, +1 INT.', bonus: {dex:2,int:1} },
+  Humans: { emoji: '👤', desc: 'Versatile and adaptable. +1 to all stats.', bonus: {str:1,dex:1,con:1,int:1,wis:1,cha:1} },
+  Dragonborn: { emoji: '🐉', desc: 'Draconic heritage. +2 STR, +1 CON.', bonus: {str:2,con:1} },
+  Goblins: { emoji: '👺', desc: 'Cunning and quick. +2 DEX, +1 INT.', bonus: {dex:2,int:1} },
+  Halflings: { emoji: '🧍‍♂️', desc: 'Lucky and charming. +2 DEX, +1 CHA.', bonus: {dex:2,cha:1} },
+  Dwarves: { emoji: '🧑‍🏭', desc: 'Sturdy and strong. +2 CON, +1 STR.', bonus: {con:2,str:1} },
+  Tieflings: { emoji: '😈', desc: 'Infernal bloodline. +2 INT, +1 CHA.', bonus: {int:2,cha:1} },
+  Minotaurs: { emoji: '🐂', desc: 'Powerful and enduring. +2 STR, +1 CON.', bonus: {str:2,con:1} },
+  Angels: { emoji: '👼', desc: 'Divine and wise. +2 WIS, +1 CHA.', bonus: {wis:2,cha:1} },
+  'Fallen Angels': { emoji: '😇', desc: 'Exiled divinity. +2 INT, +1 STR.', bonus: {int:2,str:1} },
+  Demons: { emoji: '👹', desc: 'Demonic might. +2 STR, +1 CON.', bonus: {str:2,con:1} },
+};
+
+const CLASSES = {
+  Warrior: { emoji: '⚔️', desc: 'A disciplined melee fighter. High STR, balanced defense.', primary:'str', hp:14, mp:12, atk:8, def:6, crit:5, spd:4, stats:{str:4,con:2}, abilities:['Power Attack','Shield Bash','Battle Cry'] },
+  Barbarian: { emoji: '🪓', desc: 'A savage berserker. High STR/CON, Rage ability.', primary:'str', hp:16, mp:8, atk:10, def:5, crit:4, spd:5, stats:{str:4,con:2}, abilities:['Rage','Cleave','Intimidate'] },
+  Mage: { emoji: '🧙‍♂️', desc: 'A scholar of arcane magic. High INT, powerful spells.', primary:'int', hp:10, mp:18, atk:6, def:3, crit:4, spd:4, stats:{int:4,wis:1}, abilities:['Fireball','Magic Missile','Mana Shield'] },
+  Sorcerer: { emoji: '🔮', desc: 'Innate spellcaster. High INT/CHA, burst damage.', primary:'int', hp:11, mp:16, atk:7, def:3, crit:5, spd:4, stats:{int:3,cha:2}, abilities:['Chain Lightning','Meteor Swarm','Empower'] },
+  Warlock: { emoji: '🕯️', desc: 'Pact-bound spellcaster. High CHA, dark magic.', primary:'cha', hp:12, mp:14, atk:7, def:4, crit:5, spd:4, stats:{cha:3,int:1}, abilities:['Eldritch Blast','Curse','Life Drain'] },
+  Rogue: { emoji: '🗡️', desc: 'A stealthy striker. High DEX, backstab damage.', primary:'dex', hp:11, mp:10, atk:7, def:4, crit:12, spd:6, stats:{dex:4,cha:1}, abilities:['Backstab','Stealth','Evasion'] },
+  Ranger: { emoji: '🏹', desc: 'A ranged marksman. High DEX, nature attuned.', primary:'dex', hp:12, mp:12, atk:8, def:4, crit:8, spd:5, stats:{dex:3,wis:2}, abilities:['Multi-Shot',"Hunter's Mark",'Camouflage'] },
+  Druid: { emoji: '🌿', desc: 'A nature caster. WIS-based, shapeshifting.', primary:'wis', hp:13, mp:15, atk:6, def:5, crit:4, spd:4, stats:{wis:3,con:2}, abilities:['Entangle','Healing Touch','Shapeshift'] },
+  Paladin: { emoji: '🛡️', desc: 'A holy knight. STR/CHA, healing and protection.', primary:'str', hp:15, mp:14, atk:8, def:7, crit:4, spd:4, stats:{str:3,cha:2}, abilities:['Holy Strike','Lay on Hands','Divine Shield'] },
+  Cleric: { emoji: '⛪', desc: 'A divine healer. WIS-based, strong support.', primary:'wis', hp:13, mp:17, atk:6, def:5, crit:4, spd:4, stats:{wis:4,cha:1}, abilities:['Heal','Turn Undead','Bless'] },
+  Necromancer: { emoji: '💀', desc: 'Master of undeath. INT-based, summons minions.', primary:'int', hp:11, mp:16, atk:7, def:4, crit:5, spd:4, stats:{int:3,wis:1}, abilities:['Raise Dead','Death Coil','Bone Armor'] },
+  Healer: { emoji: '🩺', desc: 'Pure support. WIS-based, powerful healing.', primary:'wis', hp:12, mp:18, atk:5, def:4, crit:3, spd:4, stats:{wis:4,cha:1}, abilities:['Greater Heal','Cleanse','Protector'] },
+  Tank: { emoji: '🛡️', desc: 'An unbreakable bulwark. High CON/STR, massive defense.', primary:'con', hp:18, mp:10, atk:7, def:10, crit:3, spd:3, stats:{con:4,str:1}, abilities:['Taunt','Shield Wall','Last Stand'] },
+  Bard: { emoji: '🎵', desc: 'A charismatic performer. Buffs and debuffs.', primary:'cha', hp:12, mp:14, atk:6, def:4, crit:5, spd:5, stats:{cha:4,dex:1}, abilities:['Inspire','Courage Song','Dissonance'] },
+  Monk: { emoji: '🥋', desc: 'A martial artist. DEX/WIS, fast unarmed strikes.', primary:'dex', hp:13, mp:12, atk:8, def:5, crit:8, spd:7, stats:{dex:3,wis:2}, abilities:['Flurry of Blows','Stunning Strike','Inner Peace'] },
+};
+
+const ABILITY_DESC = {
+  'Power Attack':'A heavy strike dealing bonus damage.',
+  'Shield Bash':'Stun the enemy briefly.',
+  'Battle Cry':'Buff attack for the party.',
+  'Rage':'Deal more damage, take less for a few turns.',
+  'Cleave':'Hit all adjacent enemies.',
+  'Intimidate':'Reduce enemy attack.',
+  'Fireball':'A blazing explosion dealing fire damage.',
+  'Magic Missile':'Unerring magical darts.',
+  'Mana Shield':'Absorb damage with MP.',
+  'Chain Lightning':'Lightning that jumps between targets.',
+  'Meteor Swarm':'Devastating meteors from the sky.',
+  'Empower':'Boost next spell damage.',
+  'Eldritch Blast':'A beam of eldritch energy.',
+  'Curse':'Weaken an enemy.',
+  'Life Drain':'Damage enemy and heal yourself.',
+  'Backstab':'Massive damage when striking from stealth.',
+  'Stealth':'Become hidden, boosting next attack.',
+  'Evasion':'Dodge the next attack.',
+  'Multi-Shot':'Fire multiple arrows.',
+  "Hunter's Mark":"Mark an enemy for bonus damage.",
+  Camouflage:'Hide in terrain, gaining evasion.',
+  Entangle:'Root enemies in place.',
+  'Healing Touch':'Heal yourself or an ally.',
+  Shapeshift:'Transform into a bear, boosting HP and defense.',
+  'Holy Strike':'A radiant melee strike.',
+  'Lay on Hands':'Heal a large amount.',
+  'Divine Shield':'Become immune to damage briefly.',
+  Heal:'Restore a moderate amount of HP.',
+  'Turn Undead':'Cause undead to flee.',
+  Bless:'Buff an ally\'s attack and defense.',
+  'Raise Dead':'Summon a skeleton minion.',
+  'Death Coil':'Damage enemy, heal yourself.',
+  'Bone Armor':'Gain temporary armor.',
+  'Greater Heal':'Heal a large amount.',
+  Cleanse:'Remove negative effects.',
+  Protector:'Shield an ally from damage.',
+  Taunt:'Force enemies to attack you.',
+  'Shield Wall':'Massively boost defense briefly.',
+  'Last Stand':'Survive a lethal hit once.',
+  Inspire:'Buff allies\' attack.',
+  'Courage Song':'Buff allies\' defense and crit.',
+  Dissonance:'Deal sonic damage to all enemies.',
+  'Flurry of Blows':'Strike multiple times quickly.',
+  'Stunning Strike':'Stun the target.',
+  'Inner Peace':'Restore MP and heal over time.',
+};
+
+const TERRAIN = {
+  grass: { name:'Grassland', color:0x86efac, walkable:true, encRate:0.0015 },
+  forest: { name:'Forest', color:0x4ade80, walkable:true, encRate:0.0035 },
+  hills: { name:'Hills', color:0xfcd34d, walkable:true, encRate:0.002 },
+  mountains: { name:'Mountains', color:0x94a3b8, walkable:false, encRate:0 },
+  water: { name:'Water', color:0x3b82f6, walkable:false, encRate:0 },
+  swamp: { name:'Swamp', color:0x6b7280, walkable:true, encRate:0.005 },
+  village: { name:'Village', color:0xfbbf24, walkable:true, encRate:0 },
+  dungeon: { name:'Dungeon', color:0x1f2937, walkable:true, encRate:0.008 },
+  desert: { name:'Desert', color:0xeab308, walkable:true, encRate:0.0025 },
+};
+
+const ZONES = {
+  village: { name: 'Starting Village', safe: true },
+  forest: { name: 'Whispering Forest', safe: false },
+  hills: { name: 'Rolling Hills', safe: false },
+  mountains: { name: 'Iron Peaks', safe: false },
+  water: { name: 'Silver Lake', safe: false },
+  swamp: { name: 'Gloom Swamp', safe: false },
+  dungeon: { name: 'Sunken Crypt', safe: false },
+  desert: { name: 'Scorched Dunes', safe: false },
+  grass: { name: 'Plains of Dawn', safe: false },
+};
+
+const TILE = 6; // world units per tile
+const COLS = 42;
+const ROWS = 42;
+
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function genWorld() {
+  const r = rng(0x5EED);
+  const grid = [];
+  for (let y = 0; y < ROWS; y++) {
+    grid[y] = [];
+    for (let x = 0; x < COLS; x++) {
+      const n = Math.sin(x * 0.12) * Math.cos(y * 0.12) + Math.sin((x+y)*0.07);
+      let t = 'grass';
+      if (n > 0.55) t = 'forest';
+      else if (n > 0.3) t = 'hills';
+      else if (n > 0.15) t = 'grass';
+      else if (n > -0.15) t = 'grass';
+      else if (n > -0.4) t = 'swamp';
+      else if (n > -0.65) t = 'water';
+      else t = 'mountains';
+      grid[y][x] = { type: t };
+    }
+  }
+  for (let y = 2; y <= 7; y++) for (let x = 2; x <= 7; x++) grid[y][x].type = 'village';
+  for (let y = 33; y <= 37; y++) for (let x = 33; x <= 37; x++) grid[y][x].type = 'dungeon';
+  for (let y = 28; y <= 32; y++) for (let x = 5; x <= 10; x++) grid[y][x].type = 'desert';
+  for (let y = 15; y <= 25; y++) for (let x = 18; x <= 20; x++) grid[y][x].type = 'mountains';
+  for (let y = 20; y <= 24; y++) for (let x = 28; x <= 32; x++) grid[y][x].type = 'water';
+  return grid;
+}
+
+const WORLD = genWorld();
+
+const ENEMIES = [
+  { id:'goblin', name:'Goblin', baseHp:22, baseAtk:5, baseDef:2, xp:25, gold:8, emoji:'👺', color:0xef4444, type:'humanoid' },
+  { id:'wolf', name:'Dire Wolf', baseHp:30, baseAtk:7, baseDef:2, xp:35, gold:10, emoji:'🐺', color:0xf59e0b, type:'beast' },
+  { id:'skeleton', name:'Skeleton', baseHp:28, baseAtk:6, baseDef:4, xp:40, gold:12, emoji:'💀', color:0x94a3b8, type:'undead' },
+  { id:'bandit', name:'Bandit', baseHp:35, baseAtk:8, baseDef:3, xp:50, gold:18, emoji:'🦹', color:0xdc2626, type:'humanoid' },
+  { id:'orc', name:'Orc', baseHp:50, baseAtk:11, baseDef:5, xp:70, gold:25, emoji:'👹', color:0xb91c1c, type:'humanoid' },
+  { id:'troll', name:'Troll', baseHp:75, baseAtk:13, baseDef:6, xp:100, gold:35, emoji:'🧌', color:0x7f1d1d, type:'giant' },
+  { id:'lich', name:'Lich', baseHp:60, baseAtk:12, baseDef:5, xp:110, gold:40, emoji:'🧟', color:0x8b5cf6, type:'undead' },
+  { id:'dragon', name:'Young Dragon', baseHp:110, baseAtk:16, baseDef:8, xp:200, gold:80, emoji:'🐉', color:0xef4444, type:'dragon' },
+];
+function enemyForLevel(lvl) {
+  const pool = ENEMIES.filter(e => e.baseHp <= 22 + lvl*18 || lvl >= 3);
+  const base = pool[Math.floor(Math.random() * pool.length)];
+  const scale = 1 + (lvl - 1) * 0.35;
+  return {
+    id: base.id, name: base.name, emoji: base.emoji, color: base.color, type: base.type,
+    maxHp: Math.floor(base.baseHp * scale), hp: Math.floor(base.baseHp * scale),
+    atk: Math.floor(base.baseAtk * scale), def: Math.floor(base.baseDef * scale),
+    xp: Math.floor(base.xp * scale), gold: Math.floor(base.gold * scale), lvl,
+  };
+}
+
+const ITEMS = {
+  ironSword: { id:'ironSword', name:'Iron Sword', type:'weapon', atk:4, emoji:'⚔️', desc:'A sturdy blade.' },
+  steelSword: { id:'steelSword', name:'Steel Sword', type:'weapon', atk:9, emoji:'⚔️', desc:'A fine steel blade.' },
+  staff: { id:'staff', name:'Oak Staff', type:'weapon', atk:2, emoji:'🪄', desc:'A wooden staff.' },
+  wand: { id:'wand', name:'Arcane Wand', type:'weapon', atk:5, emoji:'🪄', desc:'Channels magic.' },
+  bow: { id:'bow', name:'Hunter Bow', type:'weapon', atk:6, emoji:'🏹', desc:'A curved bow.' },
+  leatherArmor: { id:'leatherArmor', name:'Leather Armor', type:'armor', def:3, emoji:'🦺', desc:'Hardened leather.' },
+  chainMail: { id:'chainMail', name:'Chain Mail', type:'armor', def:6, emoji:'🦺', desc:'Interlinked steel rings.' },
+  plateArmor: { id:'plateArmor', name:'Plate Armor', type:'armor', def:11, emoji:'🛡️', desc:'Heavy steel plates.' },
+  healthPotion: { id:'healthPotion', name:'Health Potion', type:'consumable', emoji:'🧪', desc:'Restores 40 HP.', use: { heal:40 } },
+  manaPotion: { id:'manaPotion', name:'Mana Potion', type:'consumable', emoji:'🧪', desc:'Restores 30 MP.', use: { mp:30 } },
+  amulet: { id:'amulet', name:'Amulet of Might', type:'accessory', atk:3, def:2, emoji:'🧿', desc:'Grants strength.' },
+};
+const STARTER_ITEMS = {
+  Warrior: ['ironSword','leatherArmor','healthPotion'],
+  Barbarian: ['ironSword','healthPotion','healthPotion'],
+  Mage: ['staff','leatherArmor','manaPotion'],
+  Sorcerer: ['wand','leatherArmor','manaPotion'],
+  Warlock: ['wand','leatherArmor','healthPotion'],
+  Rogue: ['ironSword','leatherArmor','healthPotion'],
+  Ranger: ['bow','leatherArmor','healthPotion'],
+  Druid: ['staff','leatherArmor','healthPotion'],
+  Paladin: ['steelSword','chainMail','healthPotion'],
+  Cleric: ['staff','leatherArmor','healthPotion','healthPotion'],
+  Necromancer: ['wand','leatherArmor','healthPotion'],
+  Healer: ['staff','leatherArmor','healthPotion','healthPotion'],
+  Tank: ['ironSword','plateArmor','healthPotion'],
+  Bard: ['ironSword','leatherArmor','healthPotion'],
+  Monk: ['healthPotion','healthPotion'],
+};
+
+const ABILITIES = {
+  Warrior: [
+    { id:'powerAttack', name:'Power Attack', cost:8, desc:'Heavy strike, +50% damage.', type:'attack', mult:1.5 },
+    { id:'shieldBash', name:'Shield Bash', cost:10, desc:'Stun enemy 1 turn.', type:'stun', mult:1.0 },
+    { id:'battleCry', name:'Battle Cry', cost:12, desc:'+25% attack next 3 turns.', type:'buff', mult:0 },
+  ],
+  Barbarian: [
+    { id:'rage', name:'Rage', cost:15, desc:'+40% dmg, -30% dmg taken 3 turns.', type:'buff', mult:0 },
+    { id:'cleave', name:'Cleave', cost:10, desc:'Hit all enemies.', type:'aoe', mult:1.0 },
+    { id:'intimidate', name:'Intimidate', cost:8, desc:'Lower enemy attack.', type:'debuff', mult:0 },
+  ],
+  Mage: [
+    { id:'fireball', name:'Fireball', cost:14, desc:'Heavy fire damage.', type:'attack', mult:1.8 },
+    { id:'magicMissile', name:'Magic Missile', cost:6, desc:'Unerring damage.', type:'attack', mult:1.0 },
+    { id:'manaShield', name:'Mana Shield', cost:10, desc:'Absorb damage with MP 3 turns.', type:'buff', mult:0 },
+  ],
+  Sorcerer: [
+    { id:'chainLightning', name:'Chain Lightning', cost:16, desc:'Damage all enemies.', type:'aoe', mult:1.3 },
+    { id:'meteorSwarm', name:'Meteor Swarm', cost:24, desc:'Devastating damage to all.', type:'aoe', mult:2.2 },
+    { id:'empower', name:'Empower', cost:10, desc:'Next spell +75% damage.', type:'buff', mult:0 },
+  ],
+  Warlock: [
+    { id:'eldritchBlast', name:'Eldritch Blast', cost:8, desc:'Ranged dark damage.', type:'attack', mult:1.3 },
+    { id:'curse', name:'Curse', cost:10, desc:'Weaken enemy defense.', type:'debuff', mult:0 },
+    { id:'lifeDrain', name:'Life Drain', cost:12, desc:'Damage enemy, heal self.', type:'drain', mult:1.2 },
+  ],
+  Rogue: [
+    { id:'backstab', name:'Backstab', cost:10, desc:'Massive crit damage.', type:'attack', mult:2.5 },
+    { id:'stealth', name:'Stealth', cost:8, desc: 'Hidden: next attack auto-crits.', type:'buff', mult:0 },
+    { id:'evasion', name:'Evasion', cost:10, desc:'Dodge next attack.', type:'buff', mult:0 },
+  ],
+  Ranger: [
+    { id:'multiShot', name:'Multi-Shot', cost:10, desc:'Hit all enemies.', type:'aoe', mult:1.0 },
+    { id:"hunterMark", name:"Hunter's Mark", cost:8, desc:'Mark enemy for +dmg.', type:'debuff', mult:0 },
+    { id:'camouflage', name:'Camouflage', cost:10, desc: 'Evasion for 2 turns.', type:'buff', mult:0 },
+  ],
+  Druid: [
+    { id:'entangle', name:'Entangle', cost:10, desc:'Root enemies.', type:'debuff', mult:0 },
+    { id:'healingTouch', name:'Healing Touch', cost:12, desc:'Heal self.', type:'heal', mult:0.5 },
+    { id:'shapeshift', name:'Shapeshift', cost:16, desc:'Bear form: +HP/+def 3 turns.', type:'buff', mult:0 },
+  ],
+  Paladin: [
+    { id:'holyStrike', name:'Holy Strike', cost:10, desc:'Radiant melee damage.', type:'attack', mult:1.6 },
+    { id:'layOnHands', name:'Lay on Hands', cost:16, desc:'Large self heal.', type:'heal', mult:0.8 },
+    { id:'divineShield', name:'Divine Shield', cost:14, desc:'Immune to dmg 1 turn.', type:'buff', mult:0 },
+  ],
+  Cleric: [
+    { id:'heal', name:'Heal', cost:10, desc:'Restore moderate HP.', type:'heal', mult:0.5 },
+    { id:'turnUndead', name:'Turn Undead', cost:12, desc:'Damage/fear undead.', type:'attack', mult:1.4 },
+    { id:'bless', name:'Bless', cost:10, desc:'Buff attack & defense.', type:'buff', mult:0 },
+  ],
+  Necromancer: [
+    { id:'raiseDead', name:'Raise Dead', cost:14, desc:'Summon skeleton minion.', type:'summon', mult:0 },
+    { id:'deathCoil', name:'Death Coil', cost:10, desc: 'Damage enemy, heal self.', type:'drain', mult:1.2 },
+    { id:'boneArmor', name:'Bone Armor', cost:10, desc:'Temporary armor.', type:'buff', mult:0 },
+  ],
+  Healer: [
+    { id:'greaterHeal', name:'Greater Heal', cost:14, desc:'Large heal.', type:'heal', mult:0.7 },
+    { id:'cleanse', name:'Cleanse', cost:8, desc:'Remove debuffs.', type:'buff', mult:0 },
+    { id:'protector', name:'Protector', cost:12, desc:'Shield ally.', type:'buff', mult:0 },
+  ],
+  Tank: [
+    { id:'taunt', name:'Taunt', cost:6, desc:'Force enemies to attack you.', type:'buff', mult:0 },
+    { id:'shieldWall', name:'Shield Wall', cost:16, desc:'Massive defense 2 turns.', type:'buff', mult:0 },
+    { id:'lastStand', name:'Last Stand', cost:20, desc:'Survive lethal hit once.', type:'buff', mult:0 },
+  ],
+  Bard: [
+    { id:'inspire', name:'Inspire', cost:8, desc:'Buff attack.', type:'buff', mult:0 },
+    { id:'courageSong', name:'Courage Song', cost:12, desc:'Buff defense & crit.', type:'buff', mult:0 },
+    { id:'dissonance', name:'Dissonance', cost:14, desc:'Sonic damage to all.', type:'aoe', mult:1.1 },
+  ],
+  Monk: [
+    { id:'flurry', name:'Flurry of Blows', cost:10, desc:'Strike 3x quickly.', type:'attack', mult:0.7 },
+    { id:'stunningStrike', name:'Stunning Strike', cost:12, desc:'Stun enemy.', type:'stun', mult:1.2 },
+    { id:'innerPeace', name:'Inner Peace', cost:10, desc:'Restore MP, heal over time.', type:'buff', mult:0 },
+  ],
+};
+
+const NPCS = [
+  { id:'elder', name:'Village Elder', x:5, y:5, emoji:'👴',
+    dialogue: "Welcome, traveler. The lands beyond are dangerous. Speak to me if you need guidance.",
+    quest: { id:'goblinPest', title:'Goblin Pest', desc:'Slay 3 goblins in the forest.', target:'goblin', need:3, rewardXp:80, rewardGold:30, rewardItem:'healthPotion' } },
+  { id:'blacksmith', name:'Blacksmith', x:6, y:4, emoji:'🔨',
+    dialogue: "I can forge fine weapons. Bring me gold and I'll craft you something sturdy.",
+    quest: null },
+  { id:'healerNPC', name:'Temple Healer', x:4, y:6, emoji:'⛪',
+    dialogue: "May the light guide you. I can restore your health for a small donation.",
+    quest: null },
+];
+
+/* ============================ PLAYER STATE ============================ */
+
+const STATE = {
+  created: false, playing: false, combat: false, npc: null, uiMode: null,
+};
+
+const player = {
+  name:'Aria', race:'Humans', class:'Warrior', lvl:1, xp:0, xpNext:100,
+  str:10, dex:10, con:10, int:10, wis:10, cha:10,
+  hp:100, maxHp:100, mp:50, maxMp:50,
+  atk:8, def:6, crit:5, spd:4,
+  gold:50,
+  inv: [], equip: {weapon:null, armor:null, accessory:null},
+  skills: [], status: {}, quests: {}, completed: [], questProgress: {},
+  x: 4, y: 4, px: 4*TILE, py: 4*TILE, dir: 'down', moving: false,
+  targetX: null, targetY: null,
+};
+
+const combat = { entity: null, turn: 'player', active: false,
+  playerBuffs: {}, enemyBuffs: {} };
+
+/* ============================ THREE.JS SETUP ============================ */
+
+const container = document.getElementById('canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+scene.fog = new THREE.FogExp2(0x0f172a, 0.018);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 12, 16);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambient);
+const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+dir.position.set(20, 40, 20);
+scene.add(dir);
+
+const hemi = new THREE.HemisphereLight(0x88ccee, 0x222244, 0.5);
+scene.add(hemi);
+
+const grid = new THREE.GridHelper(260, 52, 0x263040, 0x1e2432);
+scene.add(grid);
+
+const texLoader = new THREE.TextureLoader();
+const matCache = {};
+
+function getMat(color, emissive = 0) {
+  const key = color + ',' + emissive;
+  if (matCache[key]) return matCache[key];
+  const m = new THREE.MeshStandardMaterial({ color, emissive, roughness: 0.7, metalness: 0.1, flatShading: true });
+  matCache[key] = m;
+  return m;
+}
+
+const worldMeshes = [];
+function buildWorld() {
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const t = WORLD[y][x].type;
+      const info = TERRAIN[t];
+      const h = t === 'water' ? 0.2 : (t === 'mountains' ? 2.2 : (t === 'hills' ? 1.0 : 0.4));
+      const geo = new THREE.BoxGeometry(TILE - 0.4, h, TILE - 0.4);
+      const mesh = new THREE.Mesh(geo, getMat(info.color));
+      mesh.position.set(x * TILE, h / 2, y * TILE);
+      mesh.userData = { type: t, x, y, walkable: info.walkable };
+      scene.add(mesh);
+      worldMeshes.push(mesh);
+    }
+  }
+  // decorations: trees in forest
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (WORLD[y][x].type !== 'forest') continue;
+      if (Math.random() > 0.35) continue;
+      const grp = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.4, 6), getMat(0x3f3d2b));
+      trunk.position.y = 0.7;
+      grp.add(trunk);
+      const top = new THREE.Mesh(new THREE.ConeGeometry(0.75, 1.6, 6), getMat(0x157a3c));
+      top.position.y = 1.7;
+      grp.add(top);
+      grp.position.set(x * TILE + (Math.random()-0.5)*2, 0, y * TILE + (Math.random()-0.5)*2);
+      scene.add(grp);
+      worldMeshes.push(grp);
+    }
+  }
+  // village houses
+  const houseMat = getMat(0xd97706);
+  const roofMat = getMat(0x78350f);
+  for (let y = 2; y <= 7; y++) {
+    for (let x = 2; x <= 7; x++) {
+      const grp = new THREE.Group();
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(TILE - 1, 2, TILE - 1), houseMat);
+      wall.position.y = 1;
+      grp.add(wall);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry((TILE - 1) / Math.sqrt(2), 1.6, 4), roofMat);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.y = 2.7;
+      grp.add(roof);
+      grp.position.set(x * TILE, 0, y * TILE);
+      scene.add(grp);
+      worldMeshes.push(grp);
+    }
+  }
+  // dungeon entrance
+  const dungeonGrp = new THREE.Group();
+  const arch = new THREE.Mesh(new THREE.BoxGeometry(TILE, 3, TILE), getMat(0x111827));
+  arch.position.set(35 * TILE, 1.5, 35 * TILE);
+  dungeonGrp.add(arch);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(TILE - 0.6, 2.4, 0.2), getMat(0x4b5563));
+  door.position.set(35 * TILE, 1.2, 35 * TILE + (TILE - 0.6)/2);
+  dungeonGrp.add(door);
+  scene.add(dungeonGrp);
+  worldMeshes.push(dungeonGrp);
+}
+
+function worldPos(tx, ty) { return { x: tx * TILE, z: ty * TILE }; }
+
+/* entities */
+const entityObjs = {};
+function createEntityMesh(kind, color, name) {
+  const grp = new THREE.Group();
+  let body;
+  if (kind === 'player') {
+    body = new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.2, 4, 8), getMat(0x3b82f6, 0x112244));
+    body.position.y = 0.7;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), getMat(0xfbbf24));
+    head.position.y = 1.55;
+    grp.add(head);
+  } else {
+    body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.7), getMat(color));
+    body.position.y = 0.5;
+  }
+  grp.add(body);
+  // name label via sprite
+  const cv = document.createElement('canvas');
+  cv.width = 128; cv.height = 32;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(20,24,36,0.8)'; cx.fillRect(0,0,128,32);
+  cx.fillStyle = '#e5e7eb'; cx.font = 'bold 14px sans-serif'; cx.textAlign = 'center';
+  cx.fillText(name, 64, 22);
+  const tx = new THREE.CanvasTexture(cv);
+  const sprMat = new THREE.SpriteMaterial({ map: tx, transparent: true });
+  const spr = new THREE.Sprite(sprMat);
+  spr.position.set(0, 1.6, 0);
+  spr.scale.set(1.5, 0.4, 1);
+  grp.add(spr);
+  grp.userData = { kind, name, spriteMat: sprMat, sprite: spr, tex: tx };
+  return grp;
+}
+
+let playerMesh;
+function placeEntity(mesh, tx, ty) {
+  const p = worldPos(tx, ty);
+  mesh.position.set(p.x, 0, p.z);
+  scene.add(mesh);
+}
+
+function updateNameLabel(mesh) {
+  const ud = mesh.userData;
+  if (!ud.sprite) return;
+  // billboard: look at camera
+  ud.sprite.position.copy(mesh.position).add(new THREE.Vector3(0, 1.7, 0));
+  ud.sprite.lookAt(camera.position);
+  ud.sprite.position.y += 0.2;
+}
+
+function removeEntityMesh(mesh) {
+  if (mesh.parent) mesh.parent.remove(mesh);
+  scene.remove(mesh);
+}
+
+/* ============================ STATS / ABILITIES ============================ */
+
+function recomputeStats() {
+  const c = CLASSES[player.class];
+  const r = RACES[player.race];
+  const base = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
+  for (const k in r.bonus) base[k] += r.bonus[k];
+  for (const k in c.stats) base[k] += c.stats[k];
+  const lb = Math.floor((player.lvl - 1) / 2) + 1;
+  base.str += lb; base.con += Math.floor(lb / 2);
+  let atkBonus = 0, defBonus = 0;
+  const eq = player.equip;
+  if (eq.weapon) atkBonus += eq.weapon.atk || 0;
+  if (eq.armor) defBonus += eq.armor.def || 0;
+  if (eq.accessory) { atkBonus += eq.accessory.atk || 0; defBonus += eq.accessory.def || 0; }
+  player.str = base.str; player.dex = base.dex; player.con = base.con;
+  player.int = base.int; player.wis = base.wis; player.cha = base.cha;
+  player.maxHp = 60 + player.con * 8 + (player.lvl - 1) * 18;
+  player.maxMp = 30 + player.int * 5 + player.wis * 3 + (player.lvl - 1) * 10;
+  player.atk = c.atk + Math.floor(player.str / 2) + atkBonus;
+  player.def = c.def + Math.floor(player.con / 2) + defBonus;
+  player.crit = c.crit + Math.floor(player.dex / 4);
+  player.spd = c.spd + Math.floor(player.dex / 4);
+  if (player.hp > player.maxHp) player.hp = player.maxHp;
+  if (player.mp > player.maxMp) player.mp = player.maxMp;
+}
+
+function checkLevelUp() {
+  let leveled = false;
+  while (player.xp >= player.xpNext) {
+    player.xp -= player.xpNext;
+    player.lvl++;
+    player.xpNext = Math.floor(player.xpNext * 1.5);
+    leveled = true;
+  }
+  if (leveled) {
+    recomputeStats();
+    player.hp = player.maxHp; player.mp = player.maxMp;
+    game.log(`Level up! You are now level ${player.lvl}.`, 'sys');
+  }
+}
+
+/* ============================ RENDER HUD / PANELS ============================ */
+
+function log(msg, cls) {
+  const L = document.getElementById('combatLog');
+  const d = document.createElement('div');
+  d.className = 'entry ' + (cls || '');
+  d.textContent = msg;
+  if (L) { d.style.padding = '1px 0'; L.prepend(d); }
+}
+
+function updateHUD() {
+  document.getElementById('hudName').textContent = player.name;
+  document.getElementById('hudLvl').textContent = `Level ${player.lvl} • ${player.race} ${player.class}`;
+  document.getElementById('hpFill').style.width = (player.hp / player.maxHp * 100) + '%';
+  document.getElementById('hpVal').textContent = `${Math.floor(player.hp)}/${player.maxHp}`;
+  document.getElementById('mpFill').style.width = (player.mp / player.maxMp * 100) + '%';
+  document.getElementById('mpVal').textContent = `${Math.floor(player.mp)}/${player.maxMp}`;
+  document.getElementById('xpFill').style.width = (player.xp / player.xpNext * 100) + '%';
+  document.getElementById('xpVal').textContent = `${player.xp}/${player.xpNext}`;
+  document.getElementById('hudGold').textContent = player.gold;
+  const t = WORLD[Math.round(player.py / TILE)][Math.round(player.px / TILE)].type;
+  document.getElementById('hudZone').textContent = ZONES[t].name;
+}
+
+function renderChar() {
+  document.getElementById('cRace').textContent = player.race;
+  document.getElementById('cClass').textContent = player.class;
+  document.getElementById('cStr').textContent = player.str;
+  document.getElementById('cDex').textContent = player.dex;
+  document.getElementById('cCon').textContent = player.con;
+  document.getElementById('cInt').textContent = player.int;
+  document.getElementById('cWis').textContent = player.wis;
+  document.getElementById('cCha').textContent = player.cha;
+  document.getElementById('cAtk').textContent = player.atk;
+  document.getElementById('cDef').textContent = player.def;
+  document.getElementById('cCrit').textContent = player.crit + '%';
+  document.getElementById('cSpd').textContent = player.spd;
+  document.getElementById('cGold').textContent = player.gold;
+  document.getElementById('cZone').textContent = ZONES[WORLD[Math.round(player.py / TILE)][Math.round(player.px / TILE)].type].name;
+}
+
+function renderInventory() {
+  const slots = document.getElementById('invSlots');
+  slots.innerHTML = '';
+  for (let i = 0; i < 20; i++) {
+    const div = document.createElement('div');
+    div.style.border = '1px solid #4b5563';
+    div.style.borderRadius = '6px';
+    div.style.height = '52px';
+    div.style.display = 'flex'; div.style.alignItems = 'center'; div.style.justifyContent = 'center';
+    div.style.fontSize = '20px';
+    const it = player.inv[i];
+    if (it) { div.textContent = it.emoji + ' ' + it.name; div.style.color = '#e5e7eb'; }
+    else { div.textContent = '—'; div.style.color = '#374151'; }
+    slots.appendChild(div);
+  }
+  const eq = document.getElementById('invEquip');
+  eq.innerHTML = '';
+  const show = (label, key) => {
+    const d = document.createElement('div');
+    d.style.border = '1px solid #4b5563'; d.style.borderRadius = '6px'; d.style.padding = '4px 8px';
+    d.style.fontSize = '12px'; d.style.color = '#9ca3af';
+    const it = player.equip[key];
+    d.textContent = label + ': ' + (it ? it.emoji + ' ' + it.name : 'none');
+    eq.appendChild(d);
+  };
+  show('Weapon', 'weapon'); show('Armor', 'armor'); show('Accessory', 'accessory');
+}
+
+function renderSkills() {
+  const list = document.getElementById('skillsList');
+  list.innerHTML = '';
+  const abil = ABILITIES[player.class] || [];
+  for (const a of abil) {
+    const d = document.createElement('div');
+    d.style.border = '1px solid #374151'; d.style.borderRadius = '6px'; d.style.padding = '8px';
+    d.style.marginBottom = '6px'; d.style.background = '#1f2937';
+    d.innerHTML = `<div style="font-weight:700;color:#a78bfa;">${a.name}</div>
+                   <div style="font-size:12px;color:#9ca3af;">${a.desc}</div>
+                   <div style="font-size:11px;color:#fbbf24;">Cost: ${a.cost} MP</div>`;
+    list.appendChild(d);
+  }
+}
+
+function renderQuests() {
+  const list = document.getElementById('questsList');
+  list.innerHTML = '';
+  let active = Object.values(player.quests).filter(q => !q.done);
+  if (active.length === 0) { list.textContent = 'No active quests. Talk to NPCs.'; return; }
+  for (const q of active) {
+    const d = document.createElement('div');
+    d.style.border = '1px solid #374151'; d.style.borderRadius = '6px'; d.style.padding = '8px';
+    d.style.marginBottom = '6px'; d.style.background = '#1f2937';
+    d.innerHTML = `<div style="font-weight:700;color:#a78bfa;">${q.title}</div>
+                   <div style="font-size:12px;color:#cbd5e1;">${q.desc}</div>
+                   <div style="font-size:12px;color:#9ca3af;">Progress: ${(player.questProgress[q.id] || 0)}/${q.need} ${q.target}(s)</div>`;
+    list.appendChild(d);
+  }
+}
+
+function renderMap() {
+  const cv = document.getElementById('mapCanvas');
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0b0f19'; c.fillRect(0, 0, cv.width, cv.height);
+  const sx = cv.width / COLS, sy = cv.height / ROWS;
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      c.fillStyle = '#' + TERRAIN[WORLD[y][x].type].color.toString(16).padStart(6, '0');
+      c.fillRect(x * sx, y * sy, sx, sy);
+    }
+  }
+  c.fillStyle = '#fff';
+  c.beginPath(); c.arc(player.x * sx + sx / 2, player.y * sy + sy / 2, 3, 0, Math.PI * 2); c.fill();
+  document.getElementById('mapHint').textContent = `You are in ${ZONES[WORLD[Math.round(player.py / TILE)][Math.round(player.px / TILE)].type].name}.`;
+}
+
+function openPanel(mode) {
+  if (STATE.combat) return;
+  STATE.uiMode = mode;
+  document.getElementById('charPanel').classList.toggle('visible', mode === 'char');
+  document.getElementById('inventoryPanel').classList.toggle('visible', mode === 'inventory');
+  document.getElementById('skillsPanel').classList.toggle('visible', mode === 'skills');
+  document.getElementById('questsPanel').classList.toggle('visible', mode === 'quests');
+  document.getElementById('mapPanel').classList.toggle('visible', mode === 'map');
+  if (mode === 'char') renderChar();
+  if (mode === 'inventory') renderInventory();
+  if (mode === 'skills') renderSkills();
+  if (mode === 'quests') renderQuests();
+  if (mode === 'map') renderMap();
+}
+
+function closePanel(mode) {
+  STATE.uiMode = null;
+  document.getElementById(mode + 'Panel').classList.remove('visible');
+}
+
+/* ============================ MOVEMENT ============================ */
+
+function tryMove(dx, dy) {
+  if (player.moving || STATE.combat || STATE.npc || STATE.uiMode) return;
+  const tx = Math.round((player.px + dx * TILE) / TILE);
+  const ty = Math.round((player.py + dy * TILE) / TILE);
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return;
+  const t = WORLD[ty][tx];
+  if (!TERRAIN[t.type].walkable) { game.log("You can't go there."); return; }
+  const npc = getNPCAt(tx, ty);
+  if (npc) { game.interactNPC(npc); return; }
+  const ent = combat.entity;
+  if (ent && ent.x === tx && ent.y === ty) { game.startCombat(ent); return; }
+  player.moving = true;
+  player.targetX = tx * TILE; player.targetY = ty * TILE;
+  if (dx > 0) player.dir = 'right'; else if (dx < 0) player.dir = 'left';
+  else if (dy > 0) player.dir = 'down'; else if (dy < 0) player.dir = 'up';
+}
+
+function updateMovement(dt) {
+  if (!player.moving) return;
+  const spd = player.spd * 1.7 * dt * 60;
+  let dx = player.targetX - player.px;
+  let dy = player.targetY - player.py;
+  const dist = Math.hypot(dx, dy);
+  if (dist < spd) {
+    player.px = player.targetX; player.py = player.targetY;
+    player.moving = false; player.targetX = null; player.targetY = null;
+    onTileArrived();
+  } else {
+    player.px += (dx / dist) * spd; player.py += (dy / dist) * spd;
+  }
+}
+
+function onTileArrived() {
+  const t = WORLD[Math.round(player.py / TILE)][Math.round(player.px / TILE)];
+  const rate = TERRAIN[t.type].encRate;
+  if (!TERRAIN[t.type].safe && Math.random() < rate) {
+    const ent = enemyForLevel(player.lvl);
+    combat.entity = { ...ent, x: Math.round(player.px / TILE), y: Math.round(player.py / TILE) };
+    game.startCombat(combat.entity);
+  }
+  if (TERRAIN[t.type].safe) {
+    player.hp = Math.min(player.maxHp, player.hp + 0.4);
+    player.mp = Math.min(player.maxMp, player.mp + 0.25);
+  }
+}
+
+/* ============================ NPCS ============================ */
+
+function getNPCAt(tx, ty) { return NPCS.find(n => n.x === tx && n.y === ty); }
+let npcMeshes = [];
+
+function buildNPCs() {
+  npcMeshes.forEach(m => removeEntityMesh(m));
+  npcMeshes = [];
+  NPCS.forEach(n => {
+    const m = createEntityMesh('npc', 0xa78bfa, n.name);
+    placeEntity(m, n.x, n.y);
+    npcMeshes.push(m);
+  });
+}
+
+function interactNPC(npc) {
+  STATE.npc = npc;
+  document.getElementById('npcPanel').classList.add('visible');
+  document.getElementById('npcTitle').textContent = npc.name;
+  document.getElementById('npcDialogue').textContent = npc.dialogue;
+  const opts = document.getElementById('npcOptions');
+  opts.innerHTML = '';
+  const add = (label, fn) => {
+    const b = document.createElement('button'); b.textContent = label;
+    b.onclick = (e) => { e.stopPropagation(); fn(); };
+    opts.appendChild(b);
+  };
+  if (npc.quest) {
+    const q = npc.quest;
+    if (!player.completed.includes(q.id) && !player.quests[q.id]) {
+      add('Accept Quest: ' + q.title, () => { acceptQuest(q); closeNPC(); });
+    } else if (player.quests[q.id] && !player.quests[q.id].done) {
+      const prog = (player.questProgress[q.id] || 0);
+      if (prog >= q.need) {
+        add('Complete Quest: ' + q.title, () => { completeQuest(q); closeNPC(); });
+      } else {
+        add('Quest in progress', () => {});
+      }
+    } else {
+      add('Quest already completed', () => {});
+    }
+  }
+  if (npc.id === 'healerNPC') {
+    add('Heal (5 gold)', () => {
+      if (player.gold >= 5) { player.gold -= 5; player.hp = player.maxHp; player.mp = player.maxMp; game.log('You feel renewed.', 'heal'); updateHUD(); }
+      else { game.log('Not enough gold.'); }
+    });
+  }
+  if (npc.id === 'blacksmith') {
+    add('Shop', () => { game.hideMsg(); showShop(); closeNPC(); });
+  }
+}
+
+function closeNPC() {
+  STATE.npc = null;
+  document.getElementById('npcPanel').classList.remove('visible');
+}
+
+function acceptQuest(q) {
+  player.quests[q.id] = { ...q, done: false };
+  player.questProgress[q.id] = 0;
+  game.log('Quest accepted: ' + q.title, 'sys');
+  renderQuests();
+}
+
+function completeQuest(q) {
+  player.quests[q.id].done = true;
+  player.completed.push(q.id);
+  player.xp += q.rewardXp; player.gold += q.rewardGold;
+  if (q.rewardItem) player.inv.push({ ...ITEMS[q.rewardItem] });
+  game.log('Quest complete: ' + q.title, 'sys');
+  game.log(`+${q.rewardXp} XP, +${q.rewardGold} gold, ${ITEMS[q.rewardItem].name}.`, 'xp');
+  checkLevelUp();
+  renderQuests();
+}
+
+function killCredit(enemyId) {
+  for (const qid in player.quests) {
+    const q = player.quests[qid];
+    if (q.target === enemyId && !q.done) {
+      player.questProgress[qid] = (player.questProgress[qid] || 0) + 1;
+      game.log(`Quest progress: ${q.target} (${player.questProgress[qid]}/${q.need})`);
+      if (player.questProgress[qid] >= q.need) {
+        game.log('Quest objective complete! Return to the quest giver.', 'sys');
+      }
+    }
+  }
+}
+
+/* ============================ COMBAT ============================ */
+
+function startCombat(ent) {
+  STATE.combat = true;
+  combat.entity = ent;
+  combat.turn = 'player';
+  combat.playerBuffs = {}; combat.enemyBuffs = {};
+  const p = document.getElementById('combatPanel');
+  p.classList.add('visible');
+  document.getElementById('combatTitle').textContent = 'Combat — ' + ent.name;
+  document.getElementById('combatEnemyInfo').innerHTML =
+    `<div style="font-size:13px; color:#e5e7eb; font-weight:700; margin-bottom:4px;">${ent.emoji} ${ent.name} (Lvl ${ent.lvl})</div>
+     <div class="hpbar"><div class="fill" id="ceHpFill" style="width:100%; background:#${ent.color.toString(16).padStart(6,'0')}"></div></div>
+     <div class="stat"><span class="name">HP</span><span class="val" id="ceHpVal">${ent.hp}/${ent.maxHp}</span></div>`;
+  document.getElementById('combatLog').innerHTML = '';
+  log(`A wild ${ent.name} appears!`, 'sys');
+  renderCombatActions();
+  updateHUD();
+}
+
+function renderCombatActions() {
+  const cont = document.getElementById('combatActions');
+  cont.innerHTML = '';
+  const add = (label, fn, disabled) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.disabled = disabled;
+    b.onclick = (e) => { e.stopPropagation(); fn(); };
+    cont.appendChild(b);
+  };
+  add('Attack', () => playerAttack('basic'));
+  add('Defend', () => { playerDefend(); endPlayerTurn(); });
+  const abil = ABILITIES[player.class] || [];
+  for (const a of abil) {
+    add(`${a.name} (${a.cost} MP)`, () => useAbility(a), player.mp < a.cost);
+  }
+  add('Use Item', () => useItemCombat());
+  add('Flee', () => tryFlee());
+}
+
+function dmgRoll(atk, def) {
+  const base = Math.max(1, atk - Math.floor(def / 2));
+  return Math.max(1, base + Math.floor(Math.random() * 6) - 2);
+}
+
+function playerAttack(kind) {
+  const e = combat.entity;
+  if (!e) return;
+  let crit = false;
+  let dmg = dmgRoll(player.atk, e.def);
+  if (kind === 'backstab' || (combat.playerBuffs.stealth && Math.random() < 0.5)) { crit = true; dmg *= 2; delete combat.playerBuffs.stealth; }
+  else if (Math.random() * 100 < player.crit) { crit = true; dmg *= 1.5; }
+  e.hp = Math.max(0, e.hp - dmg);
+  log(`You hit ${e.name} for ${Math.floor(dmg)} ${crit ? '(CRIT!)' : ''}`, crit ? 'dmg' : '');
+  updateEnemyUI();
+  if (e.hp <= 0) { endCombatVictory(); return; }
+  endPlayerTurn();
+}
+
+function useAbility(a) {
+  const e = combat.entity;
+  if (!e) return;
+  if (player.mp < a.cost) { game.log('Not enough MP.'); return; }
+  player.mp -= a.cost;
+  let dmg = 0, msg = '';
+  if (a.type === 'attack' || a.type === 'stun' || a.type === 'drain') {
+    dmg = dmgRoll(player.atk, e.def) * a.mult;
+    let crit = false;
+    if (Math.random() * 100 < player.crit) { crit = true; dmg *= 1.5; }
+    e.hp = Math.max(0, e.hp - dmg);
+    msg = `You use ${a.name} for ${Math.floor(dmg)} ${crit ? '(CRIT!)' : ''}`;
+    if (a.type === 'drain') { player.hp = Math.min(player.maxHp, player.hp + Math.floor(dmg / 2)); msg += `, healed ${Math.floor(dmg / 2)}`; }
+    if (a.type === 'stun') { combat.enemyBuffs.stunned = 1; msg += ' — stunned!'; }
+    log(msg, crit ? 'dmg' : '');
+  } else if (a.type === 'aoe') {
+    dmg = dmgRoll(player.atk, e.def) * a.mult;
+    e.hp = Math.max(0, e.hp - dmg);
+    log(`You use ${a.name} for ${Math.floor(dmg)} on all enemies.`);
+  } else if (a.type === 'heal') {
+    const heal = Math.floor(player.maxHp * a.mult + player.wis * 2);
+    player.hp = Math.min(player.maxHp, player.hp + heal);
+    log(`You heal for ${heal}.`, 'heal');
+  } else if (a.type === 'buff') {
+    if (a.id === 'rage') { combat.playerBuffs.rage = 3; log('You enter a rage!'); }
+    if (a.id === 'battleCry') { combat.playerBuffs.battleCry = 3; log('Your attack rises!'); }
+    if (a.id === 'shieldBash') { combat.enemyBuffs.stunned = 1; log('Enemy stunned!'); }
+    if (a.id === 'manaShield') { combat.playerBuffs.manaShield = 3; log('Mana shield active.'); }
+    if (a.id === 'stealth') { combat.playerBuffs.stealth = 1; log('You fade into shadow.'); }
+    if (a.id === 'evasion') { combat.playerBuffs.evasion = 1; log('You prepare to dodge.'); }
+    if (a.id === 'camouflage') { combat.playerBuffs.evasion = 2; log('You blend into terrain.'); }
+    if (a.id === 'shapeshift') { combat.playerBuffs.bear = 3; player.maxHp += 30; player.hp += 30; log('Bear form!'); }
+    if (a.id === 'divineShield') { combat.playerBuffs.divineShield = 1; log('Divine shield!'); }
+    if (a.id === 'intimidate') { combat.enemyBuffs.weak = 2; log('Enemy is weakened.'); }
+    if (a.id === 'curse') { combat.enemyBuffs.weak = 2; log('Enemy is cursed.'); }
+    if (a.id === 'hunterMark') { combat.enemyBuffs.marked = 2; log('Enemy marked.'); }
+    if (a.id === 'shieldWall') { combat.playerBuffs.shieldWall = 2; log('Shield wall!'); }
+    if (a.id === 'lastStand') { combat.playerBuffs.lastStand = 1; log('Last stand.'); }
+    if (a.id === 'taunt') { combat.playerBuffs.taunt = 2; log('You taunt the enemy.'); }
+    if (a.id === 'bless') { combat.playerBuffs.bless = 3; log('You are blessed.'); }
+    if (a.id === 'innerPeace') { combat.playerBuffs.innerPeace = 3; player.mp = Math.min(player.maxMp, player.mp + 20); log('Inner peace restores MP.'); }
+    if (a.id === 'cleanse') { log('Debuffs cleared.'); }
+    if (a.id === 'protector') { combat.playerBuffs.protector = 2; log('You are protected.'); }
+    if (a.id === 'inspire') { combat.playerBuffs.inspire = 3; log('Allies inspired.'); }
+    if (a.id === 'courageSong') { combat.playerBuffs.courage = 3; log('Courage song!'); }
+    if (a.id === 'empower') { combat.playerBuffs.empower = 1; log('Next spell empowered.'); }
+    if (a.id === 'turnUndead') {
+      if (e.type === 'undead') { e.hp = Math.max(0, e.hp - dmgRoll(player.atk * 1.4, e.def)); log('The undead flees in fear!'); }
+      else log('Nothing happens.');
+    }
+    if (a.id === 'raiseDead') { log('A skeleton minion rises!'); }
+    if (a.id === 'boneArmor') { combat.playerBuffs.boneArmor = 3; log('Bone armor forms.'); }
+    if (a.id === 'dissonance') { dmg = dmgRoll(player.atk, e.def) * 1.1; e.hp = Math.max(0, e.hp - dmg); log(`Dissonance deals ${Math.floor(dmg)} sonic damage.`); }
+    if (a.id === 'flurry') { dmg = dmgRoll(player.atk, e.def) * 0.7 * 3; e.hp = Math.max(0, e.hp - dmg); log(`Flurry of Blows deals ${Math.floor(dmg)}.`); }
+    if (a.id === 'layOnHands') { const h = Math.floor(player.maxHp * 0.8); player.hp = Math.min(player.maxHp, player.hp + h); log(`Lay on Hands heals ${h}.`, 'heal'); }
+    if (a.id === 'greaterHeal') { const h = Math.floor(player.maxHp * 0.7 + player.wis * 3); player.hp = Math.min(player.maxHp, player.hp + h); log(`Greater Heal restores ${h}.`, 'heal'); }
+    if (a.id === 'healingTouch') { const h = Math.floor(player.maxHp * 0.5 + player.wis * 2); player.hp = Math.min(player.maxHp, player.hp + h); log(`Healing Touch restores ${h}.`, 'heal'); }
+  }
+  if (dmg > 0 && e.hp <= 0) { endCombatVictory(); return; }
+  if (player.mp < 0) player.mp = 0;
+  updateHUD(); renderCombatActions();
+  if (e && e.hp > 0) endPlayerTurn();
+}
+
+function playerDefend() {
+  combat.playerBuffs.defend = 1;
+  log('You take a defensive stance.');
+}
+
+function useItemCombat() {
+  const pot = player.inv.find(i => i.id === 'healthPotion');
+  if (pot) {
+    player.inv = player.inv.filter(i => i !== pot);
+    player.hp = Math.min(player.maxHp, player.hp + 40);
+    log('You drink a Health Potion (+40 HP).', 'heal');
+    updateHUD(); renderCombatActions(); endPlayerTurn();
+  } else {
+    log('No potions available.');
+  }
+}
+
+function tryFlee() {
+  if (Math.random() < 0.55) { log('You escaped!'); endCombat(); }
+  else { log('Escape failed!'); endPlayerTurn(); }
+}
+
+function endPlayerTurn() {
+  if (combat.entity && combat.entity.hp <= 0) return;
+  combat.turn = 'enemy';
+  setTimeout(enemyTurn, 700);
+}
+
+function enemyTurn() {
+  const e = combat.entity;
+  if (!e || e.hp <= 0) return;
+  if (combat.enemyBuffs.stunned > 0) {
+    log(`${e.name} is stunned and loses its turn.`);
+    combat.enemyBuffs.stunned--;
+    endEnemyTurn(); return;
+  }
+  let dodged = false;
+  if (combat.playerBuffs.evasion > 0) { dodged = true; combat.playerBuffs.evasion--; log('You dodge the attack!'); }
+  if (!dodged) {
+    let dmg = dmgRoll(e.atk, player.def);
+    if (combat.enemyBuffs.weak) dmg *= 0.7;
+    if (combat.playerBuffs.rage) dmg *= 0.7;
+    if (combat.playerBuffs.defend) dmg *= 0.5;
+    if (combat.playerBuffs.divineShield) { dmg = 0; combat.playerBuffs.divineShield--; log('Divine shield blocks the blow!'); }
+    if (combat.playerBuffs.boneArmor) { dmg = Math.max(0, dmg - 5); combat.playerBuffs.boneArmor--; }
+    if (combat.playerBuffs.shieldWall) dmg *= 0.5;
+    if (combat.playerBuffs.manaShield > 0 && player.mp > 0) {
+      const absorb = Math.min(dmg, player.mp);
+      player.mp -= absorb; dmg -= absorb;
+      log(`Mana shield absorbs ${absorb}.`);
+    }
+    player.hp = Math.max(0, player.hp - dmg);
+    log(`${e.name} hits you for ${Math.floor(dmg)}.`, 'dmg');
+    if (player.hp <= 0) { endCombatDefeat(); return; }
+  }
+  combat.playerBuffs.defend = combat.playerBuffs.defend ? combat.playerBuffs.defend - 1 : 0;
+  if (combat.playerBuffs.rage > 0) combat.playerBuffs.rage--;
+  if (combat.playerBuffs.battleCry > 0) combat.playerBuffs.battleCry--;
+  if (combat.playerBuffs.shieldWall > 0) combat.playerBuffs.shieldWall--;
+  if (combat.playerBuffs.bear > 0) combat.playerBuffs.bear--;
+  if (combat.playerBuffs.bless > 0) combat.playerBuffs.bless--;
+  if (combat.playerBuffs.inspire > 0) combat.playerBuffs.inspire--;
+  if (combat.playerBuffs.courage > 0) combat.playerBuffs.courage--;
+  if (combat.playerBuffs.innerPeace > 0) { combat.playerBuffs.innerPeace--; player.hp = Math.min(player.maxHp, player.hp + 4); player.mp = Math.min(player.maxMp, player.mp + 2); }
+  endEnemyTurn();
+}
+
+function endEnemyTurn() {
+  combat.turn = 'player';
+  renderCombatActions();
+  updateHUD();
+}
+
+function endCombatVictory() {
+  const e = combat.entity;
+  log(`Victory over ${e.name}!`, 'sys');
+  log(`Gained ${e.xp} XP and ${e.gold} gold.`, 'xp');
+  player.xp += e.xp; player.gold += e.gold;
+  killCredit(e.id);
+  checkLevelUp();
+  combat.entity = null;
+  endCombat();
+}
+
+function endCombatDefeat() {
+  log('You have fallen...', 'sys');
+  combat.entity = null;
+  endCombat();
+  document.getElementById('gameOver').style.display = 'block';
+  document.getElementById('gameOverBody').textContent = 'You were defeated. Respawn at the village or load a saved game.';
+}
+
+function endCombat() {
+  STATE.combat = false;
+  document.getElementById('combatPanel').classList.remove('visible');
+  updateHUD();
+}
+
+/* ============================ SHOP ============================ */
+const SHOP_PRICE = { ironSword:20, steelSword:60, staff:15, wand:25, bow:35, leatherArmor:25, chainMail:50, plateArmor:90, amulet:40, healthPotion:15, manaPotion:15 };
+
+function showShop() {
+  const items = Object.values(ITEMS);
+  let html = '<div style="font-weight:700;color:#a78bfa; margin-bottom:8px;">Shop — Gold: ' + player.gold + '</div>';
+  html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">';
+  for (const it of items) {
+    const price = SHOP_PRICE[it.id] || 50;
+    html += `<div style="border:1px solid #4b5563; border-radius:6px; padding:8px; background:#1f2937; display:flex; justify-content:space-between; align-items:center;">
+      <div><div style="font-weight:700;">${it.emoji} ${it.name}</div><div style="font-size:11px;color:#9ca3af;">${it.desc} ${it.atk?'(+'+it.atk+' atk)':''} ${it.def?'(+'+it.def+' def)':''}</div></div>
+      <button onclick="game.buyItem('${it.id}')" ${player.gold < price ? 'disabled' : ''}>${price}g</button>
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('msgTitle').textContent = 'Shop';
+  document.getElementById('msgBody').innerHTML = html + '<div style="margin-top:10px;"><button onclick="game.hideMsg()">Close</button></div>';
+  document.getElementById('msgBox').style.display = 'block';
+}
+
+function buyItem(id) {
+  const price = SHOP_PRICE[id] || 50;
+  if (player.gold < price) { game.log('Not enough gold.'); return; }
+  player.gold -= price;
+  player.inv.push({ ...ITEMS[id] });
+  game.log(`Purchased ${ITEMS[id].name}.`);
+  updateHUD();
+}
+
+/* ============================ GAME OBJECT ============================ */
+
+const game = {
+  init() {
+    buildWorld();
+    buildNPCs();
+    recomputeStats();
+    updateHUD();
+    renderChar(); renderInventory(); renderSkills(); renderQuests(); renderMap();
+    loop(0);
+    document.getElementById('loading').style.display = 'none';
+    this.log('Welcome to Elder Realms (3D). Create your hero to begin.', 'sys');
+  },
+  log(msg, cls) {
+    const d = document.createElement('div'); d.className = 'entry ' + (cls || ''); d.textContent = msg;
+    const L = document.getElementById('combatLog');
+    if (L) { d.style.padding = '1px 0'; L.prepend(d); }
+  },
+  startCombat(ent) { startCombat(ent); },
+  openPanel(mode) { openPanel(mode); },
+  closePanel(mode) { closePanel(mode); },
+  closeNPC() { closeNPC(); },
+  interactNPC(npc) { interactNPC(npc); },
+  hideMsg() { document.getElementById('msgBox').style.display = 'none'; },
+  save() {
+    const data = { player, version: 1 };
+    try { localStorage.setItem('elder_realms_save', JSON.stringify(data)); } catch (e) { console.warn('save failed', e); }
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem('elder_realms_save');
+      if (!raw) { game.log('No save found.'); return; }
+      const data = JSON.parse(raw);
+      Object.assign(player, data.player);
+      recomputeStats();
+      updateHUD(); renderChar(); renderInventory(); renderSkills(); renderQuests();
+      game.log('Game loaded.', 'sys');
+    } catch (e) { game.log('Load failed.'); console.warn(e); }
+  },
+  respawn() {
+    document.getElementById('gameOver').style.display = 'none';
+    player.x = 4; player.y = 4; player.px = 4 * TILE; player.py = 4 * TILE;
+    player.hp = player.maxHp; player.mp = player.maxMp;
+    combat.entity = null; STATE.combat = false;
+    updateHUD();
+  },
+  buyItem(id) { buyItem(id); },
+};
+
+window.game = game;
+
+/* ============================ INPUT ============================ */
+
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  const k = e.key.toLowerCase();
+  if (STATE.uiMode || STATE.npc || STATE.combat) {
+    if (k === 'c' && STATE.uiMode === 'char') { closePanel('char'); STATE.uiMode = null; }
+    else if (k === 'i' && STATE.uiMode === 'inventory') { closePanel('inventory'); STATE.uiMode = null; }
+    else if (k === 'k' && STATE.uiMode === 'skills') { closePanel('skills'); STATE.uiMode = null; }
+    else if (k === 'q' && STATE.uiMode === 'quests') { closePanel('quests'); STATE.uiMode = null; }
+    else if (k === 'm' && STATE.uiMode === 'map') { closePanel('map'); STATE.uiMode = null; }
+    return;
+  }
+  if (k === 'c') { openPanel('char'); return; }
+  if (k === 'i') { openPanel('inventory'); return; }
+  if (k === 'k') { openPanel('skills'); return; }
+  if (k === 'q') { openPanel('quests'); return; }
+  if (k === 'm') { openPanel('map'); return; }
+  if (k === 's') { game.save(); game.log('Game saved.', 'sys'); return; }
+  if (k === 'l') { game.load(); return; }
+  if (k === 'e') {
+    const tx = Math.round(player.px / TILE), ty = Math.round(player.py / TILE);
+    const npc = getNPCAt(tx, ty);
+    if (npc) { interactNPC(npc); return; }
+    const ent = combat.entity;
+    if (ent && ent.x === tx && ent.y === ty) { startCombat(ent); return; }
+    game.log('Nothing here to interact with.');
+    return;
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('keydown', (e) => {
+  if (STATE.uiMode || STATE.npc || STATE.combat) return;
+  const c = e.code;
+  if (c === 'ArrowUp' || c === 'KeyW') tryMove(0, -1);
+  else if (c === 'ArrowDown' || c === 'KeyS') tryMove(0, 1);
+  else if (c === 'ArrowLeft' || c === 'KeyA') tryMove(-1, 0);
+  else if (c === 'ArrowRight' || c === 'KeyD') tryMove(1, 0);
+}, { capture: true });
+window.addEventListener('keydown', (e) => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) {
+    if (e.repeat) e.preventDefault();
+  }
+}, true);
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ============================ CHARACTER CREATION ============================ */
+
+let selRace = 'Humans', selClass = 'Warrior';
+
+function buildRaceGrid() {
+  const g = document.getElementById('raceGrid');
+  g.innerHTML = '';
+  for (const [id, data] of Object.entries(RACES)) {
+    const t = document.createElement('div');
+    t.className = 'tile' + (selRace === id ? ' selected' : '');
+    t.innerHTML = `<div class="emoji">${data.emoji}</div><div>${id}</div><div class="small">${data.desc}</div>`;
+    t.onclick = () => {
+      selRace = id;
+      document.querySelectorAll('#raceGrid .tile').forEach(x => {
+        x.classList.toggle('selected', x.textContent.includes(id));
+      });
+      updatePreview();
+    };
+    g.appendChild(t);
+  }
+}
+function buildClassGrid() {
+  const g = document.getElementById('classGrid');
+  g.innerHTML = '';
+  for (const [id, data] of Object.entries(CLASSES)) {
+    const t = document.createElement('div');
+    t.className = 'tile' + (selClass === id ? ' selected' : '');
+    t.innerHTML = `<div class="emoji">${data.emoji}</div><div>${id}</div><div class="small">${data.desc}</div>`;
+    t.onclick = () => {
+      selClass = id;
+      document.querySelectorAll('#classGrid .tile').forEach(x => {
+        x.classList.toggle('selected', x.textContent.includes(id));
+      });
+      updatePreview();
+    };
+    g.appendChild(t);
+  }
+}
+function updatePreview() {
+  const c = CLASSES[selClass]; const r = RACES[selRace];
+  const base = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
+  for (const k in r.bonus) base[k] += r.bonus[k];
+  for (const k in c.stats) base[k] += c.stats[k];
+  document.getElementById('previewStr').textContent = base.str;
+  document.getElementById('previewDex').textContent = base.dex;
+  document.getElementById('previewCon').textContent = base.con;
+  document.getElementById('previewInt').textContent = base.int;
+  document.getElementById('previewWis').textContent = base.wis;
+  document.getElementById('previewCha').textContent = base.cha;
+  document.getElementById('createDesc').textContent = `Race: ${r.desc}\nClass: ${c.desc}`;
+}
+document.getElementById('btnStart').onclick = () => {
+  player.name = document.getElementById('cName').value.trim() || 'Hero';
+  player.race = selRace; player.class = selClass;
+  const c = CLASSES[selClass]; const r = RACES[selRace];
+  const base = {str:10,dex:10,con:10,int:10,wis:10,cha:10};
+  for (const k in r.bonus) base[k] += r.bonus[k];
+  for (const k in c.stats) base[k] += c.stats[k];
+  player.str = base.str; player.dex = base.dex; player.con = base.con;
+  player.int = base.int; player.wis = base.wis; player.cha = base.cha;
+  recomputeStats();
+  player.hp = player.maxHp; player.mp = player.maxMp;
+  for (const id of STARTER_ITEMS[selClass] || []) player.inv.push({ ...ITEMS[id] });
+  player.skills = (ABILITIES[selClass] || []).map(a => a.id);
+  document.getElementById('createPanel').style.display = 'none';
+  STATE.created = true; STATE.playing = true;
+  // spawn player mesh
+  playerMesh = createEntityMesh('player', 0x3b82f6, player.name);
+  placeEntity(playerMesh, player.x, player.y);
+  updateHUD(); renderChar(); renderInventory(); renderSkills(); renderQuests(); renderMap();
+  game.log('Adventure begins. Use WASD to move. Talk to the Village Elder.', 'sys');
+};
+
+buildRaceGrid();
+buildClassGrid();
+updatePreview();
+
+/* ============================ MAIN LOOP ============================ */
+
+let lastTime = 0;
+function loop(t) {
+  const dt = Math.min((t - lastTime) / 1000, 0.1);
+  lastTime = t;
+  if (STATE.playing && !STATE.combat && !STATE.npc && !STATE.uiMode) {
+    updateMovement(dt);
+    if (playerMesh) {
+      // smooth mesh follow
+      const tx = player.px, ty = player.py;
+      playerMesh.position.x += (tx - playerMesh.position.x) * 0.25;
+      playerMesh.position.z += (ty - playerMesh.position.z) * 0.25;
+      playerMesh.position.y = 0.6;
+      updateNameLabel(playerMesh);
+      // camera follow
+      const targetCamX = playerMesh.position.x;
+      const targetCamZ = playerMesh.position.z + 16;
+      const targetCamY = 14;
+      camera.position.x += (targetCamX - camera.position.x) * 0.1;
+      camera.position.y += (targetCamY - camera.position.y) * 0.1;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.1;
+      camera.lookAt(playerMesh.position.x, 0, playerMesh.position.z);
+    }
+    // update npc labels
+    npcMeshes.forEach(updateNameLabel);
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+game.init();
+
+</script>
+</body>
+</html>
