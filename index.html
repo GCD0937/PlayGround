@@ -178,17 +178,13 @@
       </div>
     </div>
     <div style="margin:8px 0; font-size:12px; color:#9ca3af; line-height:1.4;" id="createDesc"></div>
-    <div style="margin:10px 0; display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap;">
-      <div style="display:flex; gap:24px; flex-wrap:wrap; min-width:260px;">
+    <div style="margin:10px 0; display:flex; gap:24px; flex-wrap:wrap; min-width:260px;">
         <div class="stat"><span class="name">STR</span><span class="val" id="previewStr">10</span></div>
         <div class="stat"><span class="name">DEX</span><span class="val" id="previewDex">10</span></div>
         <div class="stat"><span class="name">CON</span><span class="val" id="previewCon">10</span></div>
         <div class="stat"><span class="name">INT</span><span class="val" id="previewInt">10</span></div>
         <div class="stat"><span class="name">WIS</span><span class="val" id="previewWis">10</span></div>
         <div class="stat"><span class="name">CHA</span><span class="val" id="previewCha">10</span></div>
-      </div>
-      <div style="flex-shrink:0; display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center; height:150px; min-width:170px;">
-        <button id="btnStart" style="padding:12px 34px; font-size:15px;">Begin Adventure</button>
       </div>
     </div>
   </div>
@@ -1369,6 +1365,19 @@ function buildRaceGrid() {
     };
     g.appendChild(t);
   }
+  // 12° espaço: botão Begin Adventure
+  const btnTile = document.createElement('div');
+  btnTile.className = 'tile';
+  btnTile.style.display = 'flex';
+  btnTile.style.flexDirection = 'column';
+  btnTile.style.alignItems = 'center';
+  btnTile.style.justifyContent = 'center';
+  btnTile.style.gap = '6px';
+  btnTile.style.height = 'auto';
+  btnTile.style.minHeight = '110px';
+  btnTile.innerHTML = `<div style="font-size:10px; color:#9ca3af; text-align:center; line-height:1.3;">Begin</div>
+                       <button id="btnStart" style="padding:8px 20px; font-size:13px;">Adventure</button>`;
+  g.appendChild(btnTile);
 }
 function buildClassGrid() {
   const g = document.getElementById('classGrid');
@@ -1400,6 +1409,11 @@ function updatePreview() {
   document.getElementById('previewCha').textContent = base.cha;
   document.getElementById('createDesc').textContent = `Race: ${r.desc}\nClass: ${c.desc}`;
 }
+
+buildRaceGrid();
+buildClassGrid();
+updatePreview();
+
 document.getElementById('btnStart').onclick = () => {
   player.name = document.getElementById('cName').value.trim() || 'Hero';
   player.race = selRace; player.class = selClass;
@@ -1421,10 +1435,6 @@ document.getElementById('btnStart').onclick = () => {
   updateHUD(); renderChar(); renderInventory(); renderSkills(); renderQuests(); renderMap();
   game.log('Adventure begins. Use WASD to move. Talk to the Village Elder.', 'sys');
 };
-
-buildRaceGrid();
-buildClassGrid();
-updatePreview();
 
 /* ============================ MAIN LOOP ============================ */
 
