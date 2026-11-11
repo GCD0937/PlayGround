@@ -163,20 +163,22 @@
     <button class="secondary" onclick="game.closeNPC();">Leave</button>
   </div>
 
-  <div id="createPanel" class="panel" style="left:50%; top:8%; transform:translateX(-50%); width:470px; height:700px; display:block; z-index:70;">
+  <div id="createPanel" class="panel" style="left:50%; top:12%; transform:translateX(-50%); width:920px; height:540px; display:block; z-index:70; border-radius:0;">
     <h2>Create Your Hero</h2>
     <div style="margin:8px 0;">
       <label>Name</label>
-      <input id="cName" value="Aria" maxlength="20">
+      <input id="cName" value="Aria" maxlength="20" style="width:260px;">
     </div>
-    <div style="margin:8px 0;"><label>Race</label>
-      <div class="race-grid" id="raceGrid"></div>
-    </div>
-    <div style="margin:8px 0;"><label>Class</label>
-      <div class="class-grid" id="classGrid"></div>
+    <div style="display:flex; gap:18px; margin:8px 0; align-items:flex-start;">
+      <div style="flex:1;"><label>Race</label>
+        <div class="race-grid" id="raceGrid"></div>
+      </div>
+      <div style="flex:1;"><label>Class</label>
+        <div class="class-grid" id="classGrid"></div>
+      </div>
     </div>
     <div style="margin:8px 0; font-size:12px; color:#9ca3af; line-height:1.4;" id="createDesc"></div>
-    <div style="margin:10px 0;">
+    <div style="margin:10px 0; display:flex; gap:24px; flex-wrap:wrap;">
       <div class="stat"><span class="name">STR</span><span class="val" id="previewStr">10</span></div>
       <div class="stat"><span class="name">DEX</span><span class="val" id="previewDex">10</span></div>
       <div class="stat"><span class="name">CON</span><span class="val" id="previewCon">10</span></div>
@@ -185,7 +187,7 @@
       <div class="stat"><span class="name">CHA</span><span class="val" id="previewCha">10</span></div>
     </div>
     <div style="margin-top:14px; text-align:center;">
-      <button id="btnStart" style="padding:10px 28px; font-size:15px;">Begin Adventure</button>
+      <button id="btnStart" style="padding:10px 34px; font-size:15px;">Begin Adventure</button>
     </div>
   </div>
 
